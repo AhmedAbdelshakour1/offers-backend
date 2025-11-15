@@ -12,3 +12,4 @@ class Activity(Base):
     image_url = Column(String, nullable=True)
     date = Column(Date, nullable=True)
     link = Column(String, nullable=True)
+    order_id = Column(Integer, nullable=True, index=True)

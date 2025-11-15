@@ -11,3 +11,4 @@ class News(Base):
     description = Column(String, nullable=True)
     image_url = Column(String, nullable=True)
     date = Column(Date, nullable=True)
+    order_id = Column(Integer, nullable=True, index=True)

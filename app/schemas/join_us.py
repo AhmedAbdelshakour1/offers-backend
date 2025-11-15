@@ -8,6 +8,7 @@ class JoinUsCreate(BaseModel):
     name: str
     mobile_number: Optional[str] = None
     email: Optional[str] = None
+    job_role: Optional[str] = None
 
 
 class JoinUsOut(BaseModel):
@@ -16,6 +17,7 @@ class JoinUsOut(BaseModel):
     mobile_number: Optional[str] = None
     email: Optional[str] = None
     cv_url: Optional[str] = None
+    job_role: Optional[str] = None
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)

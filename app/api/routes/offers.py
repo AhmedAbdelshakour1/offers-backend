@@ -2,6 +2,7 @@ from typing import List
 
 from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException, status
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
 
 from app.api.deps import require_superadmin
 from app.db.session import get_db
@@ -9,16 +10,17 @@ from app.models.offers import Offer
 from app.schemas.offers import OfferOut
 from app.services.storage import save_upload
 
-router = APIRouter(prefix="/offers", tags=["offers"], dependencies=[Depends(require_superadmin)])
+router = APIRouter(prefix="/offers", tags=["offers"])
 
 
-@router.post("/", response_model=OfferOut)
+@router.post("/", response_model=OfferOut, dependencies=[Depends(require_superadmin)])
 async def create_offer(
     headline: str = Form(...),
     description: str | None = Form(None),
     discount: float | None = Form(None),
     parent_link: str | None = Form(None),
     child_link: str | None = Form(None),
+    order_id: int | None = Form(None),
     image: UploadFile | None = File(None),
     db: Session = Depends(get_db),
 ):
@@ -30,16 +32,24 @@ async def create_offer(
         discount=discount,
         parent_link=parent_link,
         child_link=child_link,
+        order_id=order_id,
     )
     db.add(item)
-    db.commit()
-    db.refresh(item)
+    try:
+        db.commit()
+        db.refresh(item)
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Order ID {order_id} already exists"
+        )
     return item
 
 
 @router.get("/", response_model=List[OfferOut])
 async def list_offers(db: Session = Depends(get_db)):
-    return db.query(Offer).order_by(Offer.id.desc()).all()
+    return db.query(Offer).order_by(Offer.order_id.desc().nullslast(), Offer.id.desc()).all()
 
 
 @router.get("/{item_id}", response_model=OfferOut)
@@ -50,7 +60,7 @@ async def get_offer(item_id: int, db: Session = Depends(get_db)):
     return item
 
 
-@router.put("/{item_id}", response_model=OfferOut)
+@router.put("/{item_id}", response_model=OfferOut, dependencies=[Depends(require_superadmin)])
 async def update_offer(
     item_id: int,
     headline: str | None = Form(None),
@@ -58,6 +68,7 @@ async def update_offer(
     discount: float | None = Form(None),
     parent_link: str | None = Form(None),
     child_link: str | None = Form(None),
+    order_id: int | None = Form(None),
     image: UploadFile | None = File(None),
     db: Session = Depends(get_db),
 ):
@@ -75,16 +86,25 @@ async def update_offer(
         item.parent_link = parent_link
     if child_link is not None:
         item.child_link = child_link
+    if order_id is not None:
+        item.order_id = order_id
     if image is not None:
         item.image_url = save_upload(image, subdir="images")
 
     db.add(item)
-    db.commit()
-    db.refresh(item)
+    try:
+        db.commit()
+        db.refresh(item)
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Order ID {order_id} already exists"
+        )
     return item
 
 
-@router.delete("/{item_id}")
+@router.delete("/{item_id}", dependencies=[Depends(require_superadmin)])
 async def delete_offer(item_id: int, db: Session = Depends(get_db)):
     item = db.get(Offer, item_id)
     if not item:
@@ -92,3 +112,4 @@ async def delete_offer(item_id: int, db: Session = Depends(get_db)):
     db.delete(item)
     db.commit()
     return {"status": "deleted"}
+

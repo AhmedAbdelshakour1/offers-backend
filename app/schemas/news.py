@@ -21,6 +21,7 @@ class NewsOut(BaseModel):
     description: Optional[str] = None
     date: Optional[str] = None
     image_url: Optional[str] = None
+    order_id: Optional[int] = None
 
 
     model_config = ConfigDict(from_attributes=True)

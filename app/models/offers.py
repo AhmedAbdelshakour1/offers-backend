@@ -13,3 +13,4 @@ class Offer(Base):
     discount = Column(Float, nullable=True)
     parent_link = Column(String, nullable=True)
     child_link = Column(String, nullable=True)
+    order_id = Column(Integer, nullable=True, index=True)

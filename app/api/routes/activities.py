@@ -3,6 +3,7 @@ from datetime import date
 
 from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException, status
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
 
 from app.api.deps import require_superadmin
 from app.db.session import get_db
@@ -10,22 +11,30 @@ from app.models.activities import Activity
 from app.schemas.activities import ActivityOut
 from app.services.storage import save_upload
 
-router = APIRouter(prefix="/activities", tags=["activities"], dependencies=[Depends(require_superadmin)])
+router = APIRouter(prefix="/activities", tags=["activities"])
 
 
-@router.post("/", response_model=ActivityOut)
+@router.post("/", response_model=ActivityOut, dependencies=[Depends(require_superadmin)])
 async def create_activity(
     headline: str = Form(...),
     description: str | None = Form(None),
     link: str | None = Form(None),
     date_value: date | None = Form(None, alias="date"),
+    order_id: int | None = Form(None),
     image: UploadFile | None = File(None),
     db: Session = Depends(get_db),
 ):
     image_url = save_upload(image, subdir="images") if image else None
-    item = Activity(headline=headline, description=description, image_url=image_url, date=date_value, link=link)
-    db.add(item)
-    db.commit()
+    item = Activity(headline=headline, description=description, image_url=image_url, date=date_value, link=link, order_id=order_id)
+    try:
+        db.commit()
+        db.refresh(item)
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Order ID {order_id} already exists"
+        )
     db.refresh(item)
     return {
         "id": item.id,
@@ -33,20 +42,22 @@ async def create_activity(
         "description": item.description,
         "date": item.date.isoformat() if item.date else None,
         "link": item.link,
-        "image_url": item.image_url
+        "image_url": item.image_url,
+        "order_id": item.order_id
     }
 
 
 @router.get("/", response_model=List[ActivityOut])
 async def list_activities(db: Session = Depends(get_db)):
-    items = db.query(Activity).order_by(Activity.id.desc()).all()
+    items = db.query(Activity).order_by(Activity.order_id.desc().nullslast(), Activity.id.desc()).all()
     return [{
         "id": item.id,
         "headline": item.headline,
         "description": item.description,
         "date": item.date.isoformat() if item.date else None,
         "link": item.link,
-        "image_url": item.image_url
+        "image_url": item.image_url,
+        "order_id": item.order_id
     } for item in items]
 
 
@@ -61,17 +72,19 @@ async def get_activity(item_id: int, db: Session = Depends(get_db)):
         "description": item.description,
         "date": item.date.isoformat() if item.date else None,
         "link": item.link,
-        "image_url": item.image_url
+        "image_url": item.image_url,
+        "order_id": item.order_id
     }
 
 
-@router.put("/{item_id}", response_model=ActivityOut)
+@router.put("/{item_id}", response_model=ActivityOut, dependencies=[Depends(require_superadmin)])
 async def update_activity(
     item_id: int,
     headline: str | None = Form(None),
     description: str | None = Form(None),
     link: str | None = Form(None),
     date_value: date | None = Form(None, alias="date"),
+    order_id: int | None = Form(None),
     image: UploadFile | None = File(None),
     db: Session = Depends(get_db),
 ):
@@ -85,8 +98,17 @@ async def update_activity(
         item.description = description
     if link is not None:
         item.link = link
-    if date_value is not None:
-        item.date = date_value
+    try:
+        db.commit()
+        db.refresh(item)
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Order ID {order_id} already exists"
+        )
+    if order_id is not None:
+        item.order_id = order_id
     if image is not None:
         item.image_url = save_upload(image, subdir="images")
 
@@ -99,11 +121,12 @@ async def update_activity(
         "description": item.description,
         "date": item.date.isoformat() if item.date else None,
         "link": item.link,
-        "image_url": item.image_url
+        "image_url": item.image_url,
+        "order_id": item.order_id
     }
 
 
-@router.delete("/{item_id}")
+@router.delete("/{item_id}", dependencies=[Depends(require_superadmin)])
 async def delete_activity(item_id: int, db: Session = Depends(get_db)):
     item = db.get(Activity, item_id)
     if not item:

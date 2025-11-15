@@ -18,10 +18,11 @@ async def submit_join_us(
     mobile_number: str | None = Form(None),
     email: str | None = Form(None),
     cv: UploadFile | None = File(None),
+    job_role: str | None = Form(None),
     db: Session = Depends(get_db),
 ):
     cv_url = save_upload(cv, subdir="cv") if cv else None
-    item = JoinUs(name=name, mobile_number=mobile_number, email=email, cv_url=cv_url)
+    item = JoinUs(name=name, mobile_number=mobile_number, email=email, cv_url=cv_url, job_role=job_role)
     db.add(item)
     db.commit()
     db.refresh(item)

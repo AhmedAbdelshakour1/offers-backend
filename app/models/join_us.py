@@ -11,4 +11,5 @@ class JoinUs(Base):
     mobile_number = Column(String(64), nullable=True)
     email = Column(String(255), nullable=True)
     cv_url = Column(String, nullable=True)
+    job_role = Column(String(100), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())

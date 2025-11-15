@@ -21,6 +21,7 @@ class OfferUpdate(BaseModel):
     discount: Optional[float] = None
     parent_link: Optional[str] = None
     child_link: Optional[str] = None
+    order_id: Optional[int] = None
 
 
 class OfferOut(OfferBase):
