@@ -25,6 +25,7 @@ async def create_news(
 ):
     image_url = save_upload(image, subdir="images") if image else None
     item = News(headline=headline, description=description, image_url=image_url, date=date_value, order_id=order_id)
+    db.add(item)
     try:
         db.commit()
         db.refresh(item)
@@ -34,7 +35,6 @@ async def create_news(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Order ID {order_id} already exists"
         )
-    db.refresh(item)
     return {
         "id": item.id,
         "headline": item.headline,
@@ -91,6 +91,13 @@ async def update_news(
         item.headline = headline
     if description is not None:
         item.description = description
+    if date_value is not None:
+        item.date = date_value
+    if order_id is not None:
+        item.order_id = order_id
+    if image is not None:
+        item.image_url = save_upload(image, subdir="images")
+
     try:
         db.commit()
         db.refresh(item)
@@ -100,14 +107,6 @@ async def update_news(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Order ID {order_id} already exists"
         )
-    if order_id is not None:
-        item.order_id = order_id
-    if image is not None:
-        item.image_url = save_upload(image, subdir="images")
-
-    db.add(item)
-    db.commit()
-    db.refresh(item)
     return {
         "id": item.id,
         "headline": item.headline,
