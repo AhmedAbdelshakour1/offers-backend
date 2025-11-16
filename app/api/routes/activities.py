@@ -19,13 +19,14 @@ async def create_activity(
     headline: str = Form(...),
     description: str | None = Form(None),
     link: str | None = Form(None),
-    date_value: date | None = Form(None, alias="date"),
+    date: date | None = Form(None),
     order_id: int | None = Form(None),
     image: UploadFile | None = File(None),
     db: Session = Depends(get_db),
 ):
     image_url = save_upload(image, subdir="images") if image else None
-    item = Activity(headline=headline, description=description, image_url=image_url, date=date_value, link=link, order_id=order_id)
+    item = Activity(headline=headline, description=description, image_url=image_url, date=date, link=link, order_id=order_id)
+    db.add(item)
     try:
         db.commit()
         db.refresh(item)
@@ -35,7 +36,6 @@ async def create_activity(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Order ID {order_id} already exists"
         )
-    db.refresh(item)
     return {
         "id": item.id,
         "headline": item.headline,
@@ -98,6 +98,13 @@ async def update_activity(
         item.description = description
     if link is not None:
         item.link = link
+    if date_value is not None:
+        item.date = date_value
+    if order_id is not None:
+        item.order_id = order_id
+    if image is not None:
+        item.image_url = save_upload(image, subdir="images")
+
     try:
         db.commit()
         db.refresh(item)
@@ -107,14 +114,6 @@ async def update_activity(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Order ID {order_id} already exists"
         )
-    if order_id is not None:
-        item.order_id = order_id
-    if image is not None:
-        item.image_url = save_upload(image, subdir="images")
-
-    db.add(item)
-    db.commit()
-    db.refresh(item)
     return {
         "id": item.id,
         "headline": item.headline,

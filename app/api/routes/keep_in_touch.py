@@ -1,19 +1,24 @@
 from typing import List
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Form
 from sqlalchemy.orm import Session
 
 from app.api.deps import require_superadmin
 from app.db.session import get_db
 from app.models.keep_in_touch import KeepInTouch
-from app.schemas.keep_in_touch import KeepInTouchCreate, KeepInTouchOut
+from app.schemas.keep_in_touch import KeepInTouchOut
 
 router = APIRouter(prefix="/keep-in-touch", tags=["keep-in-touch"])
 
 
 @router.post("/", response_model=KeepInTouchOut)
-async def submit_keep_in_touch(payload: KeepInTouchCreate, db: Session = Depends(get_db)):
-    item = KeepInTouch(name=payload.name, mobile_number=payload.mobile_number, email=payload.email)
+async def submit_keep_in_touch(
+    name: str = Form(...),
+    mobile_number: str = Form(...),
+    email: str = Form(...),
+    db: Session = Depends(get_db)
+):
+    item = KeepInTouch(name=name, mobile_number=mobile_number, email=email)
     db.add(item)
     db.commit()
     db.refresh(item)

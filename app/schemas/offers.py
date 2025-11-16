@@ -27,5 +27,6 @@ class OfferUpdate(BaseModel):
 class OfferOut(OfferBase):
     id: int
     image_url: Optional[str] = None
+    order_id: Optional[int] = None
 
     model_config = ConfigDict(from_attributes=True)

@@ -18,13 +18,13 @@ router = APIRouter(prefix="/news", tags=["news"])
 async def create_news(
     headline: str = Form(...),
     description: str | None = Form(None),
-    date_value: date | None = Form(None, alias="date"),
+    date: date | None = Form(None, alias="date"),
     order_id: int | None = Form(None),
     image: UploadFile | None = File(None),
     db: Session = Depends(get_db),
 ):
     image_url = save_upload(image, subdir="images") if image else None
-    item = News(headline=headline, description=description, image_url=image_url, date=date_value, order_id=order_id)
+    item = News(headline=headline, description=description, image_url=image_url, date=date, order_id=order_id)
     db.add(item)
     try:
         db.commit()
